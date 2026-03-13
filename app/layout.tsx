@@ -4,8 +4,8 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 // geist package must be installed: npm install geist
 import './globals.css'
-import '@uploadthing/react/styles.css'
-import { Toaster } from '@/components/ui/sonner'
+//import '@uploadthing/react/styles.css'
+//import { Toaster } from '@/components/ui/sonner'
 
 export const metadata: Metadata = {
   title: {
@@ -34,7 +34,7 @@ export default function RootLayout({
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body className="min-h-screen bg-slate-50 antialiased">
         {children}
-        <Toaster position="top-right" richColors />
+        {/* <Toaster position="top-right" richColors /> */}
       </body>
     </html>
   )
