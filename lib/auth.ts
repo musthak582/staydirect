@@ -1,69 +1,61 @@
-// lib/auth.ts
-import { getIronSession, IronSession, SessionOptions } from 'iron-session'
-import { cookies } from 'next/headers'
-import { prisma } from './prisma'
-import bcrypt from 'bcryptjs'
+import { betterAuth } from "better-auth";
+import { prismaAdapter } from "better-auth/adapters/prisma";
+import prisma from "@/lib/prisma";
+import { sendEmail } from "@/lib/email"; // we'll create this next
 
-export interface SessionData {
-  userId?: string
-  userEmail?: string
-  userName?: string
-  isLoggedIn: boolean
-}
+export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL, // required for Google callback URL
 
-export const sessionOptions: SessionOptions = {
-  password: process.env.SESSION_SECRET || 'complex_password_at_least_32_characters_long',
-  cookieName: 'staydirect_session',
-  cookieOptions: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7, // 1 week
-  },
-}
+  database: prismaAdapter(prisma, {
+    provider: "postgresql",
+  }),
 
-export async function getSession(): Promise<IronSession<SessionData>> {
-  const cookieStore = await cookies()
-  const session = await getIronSession<SessionData>(cookieStore, sessionOptions)
-  return session
-}
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: true, // blocks login until email is verified
 
-export async function getCurrentUser() {
-  const session = await getSession()
-  if (!session.isLoggedIn || !session.userId) return null
+    // Fires when someone tries to register with an already-registered email
+    // Returns 200 either way to prevent user enumeration (OWASP best practice)
+    onExistingUserSignUp: async ({ user }) => {
+      void sendEmail({
+        to: user.email,
+        subject: "You already have an account",
+        text: `Someone tried to sign up with your email address.
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      createdAt: true,
-      hotel: {
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-        },
-      },
+               You already have an Axiom account. If this was you, just sign in:
+               https://yourdomain.com/sign-in
+
+               If you forgot your password:
+               https://yourdomain.com/forgot-password
+
+              If this wasn't you, you can safely ignore this email.`,
+      });
     },
-  })
 
-  return user
-}
+    sendResetPassword: async ({ user, url }) => {
+      void sendEmail({ // no await = prevents timing attacks
+        to: user.email,
+        subject: "Reset your password",
+        text: `Click to reset your password: ${url}`,
+      });
+    },
+  },
 
-export async function requireAuth() {
-  const user = await getCurrentUser()
-  if (!user) {
-    throw new Error('UNAUTHORIZED')
-  }
-  return user
-}
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url }) => {
+      void sendEmail({ // no await = prevents timing attacks
+        to: user.email,
+        subject: "Verify your email address",
+        text: `Click to verify your email: ${url}`,
+      });
+    },
+  },
 
-export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 12)
-}
-
-export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
-  return bcrypt.compare(password, hashedPassword)
-}
+  socialProviders: {
+    google: {
+      clientId: process.env.AUTH_GOOGLE_ID as string,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET as string,
+      prompt: "select_account", // always show account chooser
+    },
+  },
+});
