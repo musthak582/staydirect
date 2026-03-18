@@ -58,11 +58,11 @@ Many small and medium hotels want **direct bookings**, but lack the tools to bui
 
 ### Dashboard
 
-![Dashboard](./screenshots/dashboard.png)
+![Dashboard](./public/dashboard.png)
 
 ### Booking Page
 
-![Booking](./screenshots/booking.png)
+![Booking](./public/booking.png)
 
 ---
 
@@ -70,7 +70,7 @@ Many small and medium hotels want **direct bookings**, but lack the tools to bui
 
 | Area       | Technology                   |
 | ---------- | ---------------------------- |
-| Framework  | Next.js 15 (App Router)      |
+| Framework  | Next.js 16 (App Router)      |
 | Language   | TypeScript                   |
 | Styling    | Tailwind CSS + shadcn/ui     |
 | Database   | PostgreSQL (Neon)            |
