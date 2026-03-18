@@ -1,9 +1,4 @@
 # 🏨 StayDirect – Zero-commission hotel booking platform
-
-<p align="center">
-  <img src="./public/og-image.png" alt="StayDirect - Direct bookings for hotels" width="700" />
-</p>
-
 <p align="center">
   <a href="#features"><img src="https://img.shields.io/badge/Features-✨-blue?style=flat-square" /></a>
   <a href="#tech-stack"><img src="https://img.shields.io/badge/Stack-Next.js%20·%20Prisma%20·%20Stripe-000?style=flat-square" /></a>
