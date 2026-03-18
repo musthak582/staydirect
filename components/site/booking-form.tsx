@@ -23,7 +23,7 @@ export function BookingForm({ hotel, rooms, selectedRoom }: Props) {
   const [activeRoom, setActiveRoom] = useState(selectedRoom);
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<BookingFormValues>({
-    resolver: zodResolver(bookingSchema),
+    resolver: zodResolver(bookingSchema) as any,
     defaultValues: {
       roomId: selectedRoom.id,
       hotelId: hotel.id,
