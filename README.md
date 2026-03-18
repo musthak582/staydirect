@@ -226,7 +226,6 @@ MIT © StayDirect
 ## 🌐 Links
 
 * GitHub: https://github.com/musthak582/staydirect
-* Email: [hello@staydirect.com](mailto:hello@staydirect.com)
 
 ---
 
