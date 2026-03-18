@@ -22,7 +22,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
-
+  hotel         Hotel?
   @@unique([email])
   @@map("user")
 }
@@ -73,4 +73,83 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+/// Core StayDirect models
+
+model Hotel {
+  id           String    @id @default(cuid())
+  name         String
+  slug         String    @unique
+  description  String?
+  location     String?
+  contactEmail String?
+  contactPhone String?
+  logo         String?
+  coverImage   String?
+  amenities    String[]
+
+  ownerId String  @unique
+  owner   User    @relation(fields: [ownerId], references: [id])
+
+  rooms    Room[]
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("hotel")
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  hotelId     String
+  hotel       Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Float
+  capacity    Int
+  imageUrl    String?
+
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("room")
+}
+
+model Booking {
+  id           String         @id @default(cuid())
+  hotelId      String
+  hotel        Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  roomId       String
+  room         Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  guestName    String
+  guestEmail   String
+  guestPhone   String?
+  checkIn      DateTime
+  checkOut     DateTime
+  guests       Int
+  totalPrice   Float
+  status       BookingStatus  @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  specialNotes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("booking")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
 }

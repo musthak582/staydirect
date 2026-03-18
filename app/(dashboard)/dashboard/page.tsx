@@ -1,268 +1,511 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useSession, signOut } from "@/lib/auth-client";
-import {
-  LayoutDashboard, Settings, Users, BarChart3,
-  LogOut, Bell, ChevronRight, Zap, Shield, Activity, Loader2
-} from "lucide-react";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+import { formatPrice, formatDate } from "@/lib/utils";
+import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
+import {
+  ArrowRight,
+  BedDouble,
+  CalendarCheck,
+  DollarSign,
+  Clock,
+  Building2,
+  ChevronRight,
+  TrendingUp,
+  Users,
+  CalendarDays,
+  Star,
+  ExternalLink,
+  Plus,
+  CreditCard,
+} from "lucide-react";
+import {
+  GridBackground,
+  SectionHeader,
+  MetricCard,
+  GlassCard,
+  StatusBadge,
+  QuickActionButton
+} from "@/components/ui/design-system";
 
-const stats = [
-  { label: "Active sessions", value: "1" },
-  { label: "API calls today", value: "—" },
-  { label: "Last login", value: "Now" },
-];
+// ─── data fetching ───────────────────────────────────────────────────────────
 
-const recentActivity = [
-  { action: "Signed in", detail: "Email + password", time: "Just now", ok: true },
-  { action: "Account created", detail: "Email verified", time: "Today", ok: true },
-];
+async function getDashboardData(userId: string) {
+  const hotel = await prisma.hotel.findUnique({
+    where: { ownerId: userId },
+    include: {
+      rooms: true,
+      bookings: {
+        include: { room: true },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
 
-export default function DashboardPage() {
-  const router = useRouter();
-  const { data: session, isPending } = useSession();
-  const [signingOut, setSigningOut] = useState(false);
+  if (!hotel) return { hotel: null };
 
-  useEffect(() => {
-    if (!isPending && !session?.user) router.push("/sign-in");
-  }, [isPending, session, router]);
+  const bookings = hotel.bookings;
+  const now = new Date();
 
-  async function handleSignOut() {
-    setSigningOut(true);
-    await signOut({ fetchOptions: { onSuccess: () => router.push("/sign-in") } });
-  }
+  const totalRevenue = bookings
+    .filter((b) => b.status === "CONFIRMED")
+    .reduce((sum, b) => sum + b.totalPrice, 0);
 
-  if (isPending) {
+  const pendingBookings = bookings.filter((b) => b.status === "PENDING");
+  const confirmedBookings = bookings.filter((b) => b.status === "CONFIRMED");
+
+  // Active stays: confirmed bookings where today is between checkIn and checkOut
+  const activeStays = confirmedBookings.filter(
+    (b) => new Date(b.checkIn) <= now && new Date(b.checkOut) >= now
+  );
+
+  // Upcoming: confirmed bookings with checkIn in the future
+  const upcomingBookings = confirmedBookings
+    .filter((b) => new Date(b.checkIn) > now)
+    .sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime())
+    .slice(0, 5);
+
+  // Recent bookings for the activity feed
+  const recentBookings = bookings.slice(0, 8);
+
+  // Calculate occupancy rate (simplified)
+  const totalRoomNights = hotel.rooms.length * 30; // 30 days lookback
+  const occupiedNights = confirmedBookings.reduce((sum, b) => {
+    const nights = Math.ceil((new Date(b.checkOut).getTime() - new Date(b.checkIn).getTime()) / (1000 * 60 * 60 * 24));
+    return sum + nights;
+  }, 0);
+  const occupancyRate = totalRoomNights > 0 ? Math.round((occupiedNights / totalRoomNights) * 100) : 0;
+
+  return {
+    hotel,
+    stats: {
+      totalRooms: hotel.rooms.length,
+      totalBookings: bookings.length,
+      pendingCount: pendingBookings.length,
+      confirmedCount: confirmedBookings.length,
+      activeStays: activeStays.length,
+      totalRevenue,
+      occupancyRate,
+    },
+    upcomingBookings,
+    recentBookings,
+    pendingBookings: pendingBookings.slice(0, 4),
+  };
+}
+
+// ─── page ─────────────────────────────────────────────────────────────────────
+
+export default async function DashboardPage() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) redirect("/login");
+
+  const data = await getDashboardData(session.user.id);
+
+  // No hotel yet — show beautiful setup flow
+  if (!data.hotel) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="flex items-center gap-2">
-          {[0, 150, 300].map((d) => (
-            <div key={d} className="w-1.5 h-1.5 bg-zinc-300 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
-          ))}
+      <div className="relative min-h-screen bg-white">
+        <GridBackground />
+        <div className="relative z-10 max-w-4xl mx-auto px-6 py-12">
+          <PageHeader
+            title={`Welcome, ${session.user.name.split(" ")[0]}.`}
+            description="Let's get your direct booking website live in minutes."
+          />
+          <SetupPrompt />
         </div>
       </div>
     );
   }
-  if (!session?.user) return null;
 
-  const { user } = session;
-  const initials = user.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() || "U";
+  const { hotel, stats, upcomingBookings, recentBookings, pendingBookings } = data;
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex" style={{ fontFamily: "'GeistMono', 'Courier New', monospace" }}>
+    <div className="relative min-h-screen bg-white">
+      <GridBackground />
 
-      {/* Sidebar */}
-      <aside className="hidden md:flex flex-col w-56 bg-white border-r border-zinc-200 min-h-screen">
-
-        {/* Logo */}
-        <div className="flex items-center gap-2.5 px-5 py-5 border-b border-zinc-100">
-          <div className="w-7 h-7 bg-zinc-950 rounded-md flex items-center justify-center">
-            <div className="w-3.5 h-3.5 bg-white rounded-sm" />
-          </div>
-          <span className="text-zinc-900 text-sm font-medium tracking-widest uppercase">Axiom</span>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
-          {[
-            { icon: LayoutDashboard, label: "Overview", active: true },
-            { icon: Activity, label: "Activity", active: false },
-            { icon: Users, label: "Users", active: false },
-            { icon: BarChart3, label: "Analytics", active: false },
-            { icon: Settings, label: "Settings", active: false },
-          ].map(({ icon: Icon, label, active }) => (
-            <button key={label}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs tracking-widest uppercase transition-colors ${
-                active
-                  ? "bg-zinc-900 text-white"
-                  : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
-              }`}>
-              <Icon size={13} />
-              {label}
-            </button>
-          ))}
-        </nav>
-
-        <Separator className="bg-zinc-100" />
-
-        {/* User + sign out */}
-        <div className="p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-zinc-900 text-white rounded-lg flex items-center justify-center text-xs font-semibold shrink-0">
-              {initials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-zinc-900 truncate">{user.name || "User"}</p>
-              <p className="text-xs text-zinc-400 truncate">{user.email}</p>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSignOut}
-            disabled={signingOut}
-            className="w-full h-9 border-zinc-200 text-zinc-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 text-xs tracking-widest uppercase gap-2 transition-all"
-          >
-            {signingOut ? <Loader2 size={12} className="animate-spin" /> : <LogOut size={12} />}
-            {signingOut ? "Signing out…" : "Sign out"}
-          </Button>
-        </div>
-      </aside>
-
-      {/* Main */}
-      <main className="flex-1 flex flex-col min-h-screen">
-
-        {/* Top bar */}
-        <header className="bg-white border-b border-zinc-200 flex items-center justify-between px-8 py-4">
+      <div className="relative z-10 px-6 py-8 max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-12">
           <div>
-            <p className="text-xs tracking-widest uppercase text-zinc-400">Overview</p>
-            <h1 className="text-base font-semibold text-zinc-900 mt-0.5">
-              Good to see you, {user.name?.split(" ")[0] || "there"}.
+            <div className="flex items-center gap-2 text-xs tracking-widest uppercase text-zinc-400 mb-3">
+              <span>Dashboard</span>
+              <span className="text-zinc-300">/</span>
+              <span className="text-zinc-900">Overview</span>
+            </div>
+            <h1 className="text-4xl font-semibold tracking-tighter text-zinc-900 mb-2">
+              Welcome back, <span className="text-zinc-400">{session.user.name.split(" ")[0]}</span>
             </h1>
+            <p className="text-zinc-500 text-sm">
+              Managing <span className="text-zinc-900 font-medium">{hotel.name}</span>
+            </p>
           </div>
-          <div className="flex items-center gap-2.5">
-            {/* Live badge */}
-            <Badge variant="outline" className="hidden md:flex gap-1.5 border-zinc-200 text-zinc-500 text-xs tracking-widest uppercase font-normal h-8">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-              Live
-            </Badge>
-            <Button variant="outline" size="icon" className="relative h-9 w-9 border-zinc-200">
-              <Bell size={14} className="text-zinc-500" />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-zinc-900 rounded-full" />
-            </Button>
-            {/* Mobile sign out */}
+
+          <Link href={`/${hotel.slug}`} target="_blank">
             <Button
               variant="outline"
-              size="icon"
-              onClick={handleSignOut}
-              disabled={signingOut}
-              className="md:hidden h-9 w-9 border-zinc-200 text-zinc-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
+              className="border-zinc-200 text-zinc-600 hover:border-zinc-400 hover:text-zinc-900 text-xs tracking-widest uppercase h-10 px-5 gap-2 group"
             >
-              {signingOut ? <Loader2 size={13} className="animate-spin" /> : <LogOut size={13} />}
+              View live site
+              <ExternalLink size={12} className="group-hover:translate-x-0.5 transition-transform" />
             </Button>
-          </div>
-        </header>
-
-        <div className="flex-1 p-6 md:p-8 space-y-6">
-
-          {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {stats.map(({ label, value }) => (
-              <div key={label} className="bg-white border border-zinc-200 rounded-xl p-5">
-                <p className="text-xs tracking-widest uppercase text-zinc-400 mb-2">{label}</p>
-                <p className="text-3xl font-semibold text-zinc-900 tracking-tight">{value}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Two columns */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-            {/* Account info */}
-            <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
-                <span className="text-xs tracking-widest uppercase text-zinc-500 font-medium">Account</span>
-                <Button variant="ghost" size="sm" className="h-7 text-xs text-zinc-400 hover:text-zinc-900 tracking-widest uppercase gap-1 px-2">
-                  Edit <ChevronRight size={11} />
-                </Button>
-              </div>
-              <div className="p-5 space-y-3.5">
-                {[
-                  { field: "Name", value: user.name || "—" },
-                  { field: "Email", value: user.email },
-                  { field: "Verified", value: user.emailVerified ? "Yes" : "Pending" },
-                  { field: "Provider", value: "Email + password" },
-                ].map(({ field, value }) => (
-                  <div key={field} className="flex items-center justify-between gap-4">
-                    <span className="text-xs tracking-widest uppercase text-zinc-400 shrink-0">{field}</span>
-                    <span className="text-xs text-zinc-700 text-right truncate font-medium">{value as string}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Activity */}
-            <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-zinc-100">
-                <span className="text-xs tracking-widest uppercase text-zinc-500 font-medium">Recent activity</span>
-              </div>
-              <div className="divide-y divide-zinc-50">
-                {recentActivity.map(({ action, detail, time, ok }) => (
-                  <div key={action} className="flex items-center gap-4 px-5 py-4">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${ok ? "bg-zinc-900" : "bg-zinc-300"}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-zinc-800">{action}</p>
-                      <p className="text-xs text-zinc-400 mt-0.5">{detail}</p>
-                    </div>
-                    <span className="text-xs text-zinc-400 shrink-0">{time}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Quick actions */}
-          <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-100">
-              <span className="text-xs tracking-widest uppercase text-zinc-500 font-medium">Quick actions</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-zinc-100">
-              {[
-                { icon: Zap, title: "API keys", desc: "Manage access tokens" },
-                { icon: Shield, title: "Security", desc: "Sessions & 2FA" },
-                { icon: Settings, title: "Preferences", desc: "Customize account" },
-              ].map(({ icon: Icon, title, desc }) => (
-                <button key={title}
-                  className="flex items-center gap-4 px-5 py-5 text-left hover:bg-zinc-50 transition-colors group">
-                  <div className="w-9 h-9 bg-zinc-100 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-zinc-200 transition-colors">
-                    <Icon size={14} className="text-zinc-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-zinc-900">{title}</p>
-                    <p className="text-xs text-zinc-400 mt-0.5">{desc}</p>
-                  </div>
-                  <ChevronRight size={13} className="text-zinc-300 group-hover:text-zinc-500 transition-colors shrink-0" />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Session / sign out */}
-          <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-100">
-              <span className="text-xs tracking-widest uppercase text-zinc-500 font-medium">Session</span>
-            </div>
-            <div className="px-5 py-5 flex items-center justify-between gap-6">
-              <div>
-                <p className="text-xs font-medium text-zinc-800">Signed in as {user.email}</p>
-                <p className="text-xs text-zinc-400 mt-0.5">This will end your session across all open tabs.</p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={handleSignOut}
-                disabled={signingOut}
-                className="shrink-0 h-9 border-zinc-200 text-zinc-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 text-xs tracking-widest uppercase gap-2 transition-all"
-              >
-                {signingOut ? <Loader2 size={12} className="animate-spin" /> : <LogOut size={12} />}
-                {signingOut ? "Signing out…" : "Sign out"}
-              </Button>
-            </div>
-          </div>
-
+          </Link>
         </div>
 
-        <footer className="bg-white border-t border-zinc-200 px-8 py-4 flex items-center justify-between">
-          <span className="text-xs text-zinc-400 tracking-widest uppercase">Axiom v1.0</span>
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-            <span className="text-xs text-zinc-400">All systems operational</span>
+        {/* Quick stats row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <MetricCard
+            label="Revenue"
+            value={formatPrice(stats.totalRevenue)}
+            icon="dollar"  // Changed from {DollarSign}
+            trend={{ value: 12, positive: true }}
+          />
+          <MetricCard
+            label="Bookings"
+            value={stats.totalBookings}
+            icon="calendar"  // Changed from {CalendarCheck}
+            trend={{ value: 8, positive: true }}
+          />
+          <MetricCard
+            label="Occupancy"
+            value={`${stats.occupancyRate}%`}
+            icon="trending"  // Changed from {TrendingUp}
+          />
+          <MetricCard
+            label="Active stays"
+            value={stats.activeStays}
+            icon="users"  // Changed from {Users}
+          />
+        </div>
+
+        {/* Main grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left column - Main content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Pending actions */}
+            {pendingBookings.length > 0 && (
+              <GlassCard>
+                <div className="p-5 border-b border-zinc-100 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                      <Clock size={14} className="text-amber-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-900">Action required</h3>
+                      <p className="text-xs text-zinc-500">{stats.pendingCount} pending bookings need review</p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/dashboard/bookings?status=pending"
+                    className="text-xs tracking-widest uppercase text-zinc-400 hover:text-zinc-900 transition-colors flex items-center gap-1"
+                  >
+                    Review all <ChevronRight size={11} />
+                  </Link>
+                </div>
+
+                <div className="divide-y divide-zinc-100">
+                  {pendingBookings.map((booking) => (
+                    <PendingBookingRow key={booking.id} booking={booking} />
+                  ))}
+                </div>
+              </GlassCard>
+            )}
+
+            {/* Recent activity */}
+            <GlassCard>
+              <div className="p-5 border-b border-zinc-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-zinc-100 rounded-lg flex items-center justify-center">
+                    <CalendarDays size={14} className="text-zinc-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-zinc-900">Recent activity</h3>
+                    <p className="text-xs text-zinc-500">Latest bookings and updates</p>
+                  </div>
+                </div>
+                <Link
+                  href="/dashboard/bookings"
+                  className="text-xs tracking-widest uppercase text-zinc-400 hover:text-zinc-900 transition-colors flex items-center gap-1"
+                >
+                  View all <ChevronRight size={11} />
+                </Link>
+              </div>
+
+              {recentBookings.length === 0 ? (
+                <div className="p-12 text-center">
+                  <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CalendarDays size={20} className="text-zinc-400" />
+                  </div>
+                  <p className="text-sm text-zinc-900 mb-1">No bookings yet</p>
+                  <p className="text-xs text-zinc-400">Share your booking link to get started</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-zinc-100">
+                  {recentBookings.map((booking) => (
+                    <ActivityRow key={booking.id} booking={booking} />
+                  ))}
+                </div>
+              )}
+            </GlassCard>
           </div>
-        </footer>
-      </main>
+
+          {/* Right column - Sidebar */}
+          <div className="space-y-6">
+            {/* Hotel status card */}
+            <GlassCard>
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-zinc-100 rounded-lg overflow-hidden">
+                      {hotel.logo ? (
+                        <img src={hotel.logo} alt={hotel.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Building2 size={16} className="text-zinc-400" />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-900">{hotel.name}</h3>
+                      <p className="text-xs text-zinc-500">{hotel.location || "Location not set"}</p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-50 border border-emerald-200">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                    <span className="text-emerald-700 text-xs tracking-widest uppercase">Live</span>
+                  </span>
+                </div>
+
+                {/* Quick stats */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-zinc-50 rounded-lg p-3">
+                    <p className="text-xs text-zinc-400 mb-1">Rooms</p>
+                    <p className="text-lg font-semibold text-zinc-900">{stats.totalRooms}</p>
+                  </div>
+                  <div className="bg-zinc-50 rounded-lg p-3">
+                    <p className="text-xs text-zinc-400 mb-1">Reviews</p>
+                    <p className="text-lg font-semibold text-zinc-900">0</p>
+                  </div>
+                </div>
+
+                {/* Quick actions */}
+                <div className="space-y-1">
+                  <div className="space-y-1">
+                    <QuickActionButton
+                      href={`/${hotel.slug}`}
+                      label="View public site"
+                      icon="external"  // Changed from {ExternalLink}
+                    />
+                    <QuickActionButton
+                      href="/dashboard/hotel"
+                      label="Edit hotel profile"
+                      icon="building"  // Changed from {Building2}
+                    />
+                    <QuickActionButton
+                      href="/dashboard/rooms/new"
+                      label="Add new room"
+                      icon="plus"  // Changed from {Plus}
+                    />
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+
+            {/* Upcoming stays */}
+            <GlassCard>
+              <div className="p-5 border-b border-zinc-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-zinc-100 rounded-lg flex items-center justify-center">
+                    <Star size={14} className="text-zinc-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-zinc-900">Upcoming stays</h3>
+                    <p className="text-xs text-zinc-500">Confirmed reservations</p>
+                  </div>
+                </div>
+              </div>
+
+              {upcomingBookings.length === 0 ? (
+                <div className="p-8 text-center">
+                  <p className="text-xs text-zinc-400">No upcoming stays</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-zinc-100">
+                  {upcomingBookings.map((booking) => (
+                    <UpcomingBookingRow key={booking.id} booking={booking} />
+                  ))}
+                </div>
+              )}
+            </GlassCard>
+
+            {/* Payment summary */}
+            <GlassCard>
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <CreditCard size={14} className="text-zinc-400" />
+                    <p className="text-xs tracking-widest uppercase text-zinc-400">Payment summary</p>
+                  </div>
+                  <span className="text-xs text-emerald-600">+{stats.confirmedCount} confirmed</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-zinc-500">Total collected</p>
+                  <p className="text-lg font-semibold text-zinc-900">{formatPrice(stats.totalRevenue)}</p>
+                </div>
+              </div>
+            </GlassCard>
+          </div>
+        </div>
+      </div>
     </div>
+  );
+}
+
+// ─── setup prompt (no hotel yet) ─────────────────────────────────────────────
+
+function SetupPrompt() {
+  const steps = [
+    {
+      number: "01",
+      title: "Create hotel profile",
+      description: "Add your hotel name, location, and beautiful cover photo.",
+      href: "/dashboard/hotel",
+      icon: Building2,
+    },
+    {
+      number: "02",
+      title: "Add your rooms",
+      description: "List each room with pricing, photos, and amenities.",
+      href: "/dashboard/rooms",
+      icon: BedDouble,
+    },
+    {
+      number: "03",
+      title: "Share your booking link",
+      description: "Send guests directly to your custom booking site.",
+      href: "#",
+      icon: ExternalLink,
+    },
+  ];
+
+  return (
+    <div className="max-w-2xl">
+      <div className="space-y-3 mb-8">
+        {steps.map((step, index) => (
+          <Link key={step.number} href={step.href}>
+            <div className="group relative">
+              {/* Progress line */}
+              {index < steps.length - 1 && (
+                <div className="absolute left-8 top-14 bottom-0 w-px bg-zinc-200 group-hover:bg-zinc-300 transition-colors" />
+              )}
+
+              <div className="relative flex items-start gap-6 p-6 bg-white border border-zinc-200 rounded-xl hover:border-zinc-400 transition-all hover:shadow-lg">
+                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center group-hover:bg-zinc-900 transition-colors">
+                  <step.icon size={20} className="text-zinc-500 group-hover:text-white transition-colors" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="text-xs font-medium text-zinc-400">{step.number}</span>
+                    <h3 className="text-sm font-semibold text-zinc-900">{step.title}</h3>
+                  </div>
+                  <p className="text-xs text-zinc-500">{step.description}</p>
+                </div>
+                <ArrowRight
+                  size={16}
+                  className="text-zinc-300 group-hover:text-zinc-900 group-hover:translate-x-1 transition-all"
+                />
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      <Link href="/dashboard/hotel">
+        <Button className="bg-zinc-900 hover:bg-zinc-800 text-white text-xs tracking-widest uppercase h-12 px-8 gap-2 group">
+          Start setup
+          <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+        </Button>
+      </Link>
+    </div>
+  );
+}
+
+// ─── row components ───────────────────────────────────────────────────────────
+
+function PendingBookingRow({ booking }: { booking: any }) {
+  return (
+    <Link
+      href={`/dashboard/bookings/${booking.id}`}
+      className="flex items-center justify-between px-5 py-4 hover:bg-zinc-50 transition-colors group"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+          <Clock size={13} className="text-amber-600" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-zinc-900 truncate">{booking.guestName}</p>
+          <p className="text-xs text-zinc-400">{booking.room.name} • {formatDate(booking.checkIn)}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="text-right hidden sm:block">
+          <p className="text-xs font-medium text-zinc-900">{formatPrice(booking.totalPrice)}</p>
+        </div>
+        <Button
+          size="sm"
+          className="bg-zinc-900 hover:bg-zinc-800 text-white text-xs tracking-widest uppercase h-8 px-3 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          Review
+        </Button>
+      </div>
+    </Link>
+  );
+}
+
+function ActivityRow({ booking }: { booking: any }) {
+  return (
+    <Link
+      href={`/dashboard/bookings/${booking.id}`}
+      className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50 transition-colors"
+    >
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="w-8 h-8 bg-zinc-100 rounded-full flex items-center justify-center">
+          <span className="text-xs font-medium text-zinc-600">
+            {booking.guestName.charAt(0).toUpperCase()}
+          </span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-zinc-900 truncate">{booking.guestName}</p>
+          <p className="text-xs text-zinc-400 truncate">{booking.room.name}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 ml-4">
+        <p className="text-xs font-medium text-zinc-900 hidden sm:block">
+          {formatPrice(booking.totalPrice)}
+        </p>
+        <StatusBadge status={booking.status} />
+        <ChevronRight size={12} className="text-zinc-300" />
+      </div>
+    </Link>
+  );
+}
+
+function UpcomingBookingRow({ booking }: { booking: any }) {
+  return (
+    <Link
+      href={`/dashboard/bookings/${booking.id}`}
+      className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50 transition-colors"
+    >
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-zinc-900 truncate">{booking.guestName}</p>
+        <p className="text-xs text-zinc-400">{booking.room.name}</p>
+      </div>
+      <div className="text-right ml-4">
+        <p className="text-xs font-medium text-zinc-900">{formatDate(booking.checkIn)}</p>
+        <p className="text-xs text-zinc-400">{formatPrice(booking.totalPrice)}</p>
+      </div>
+    </Link>
   );
 }
