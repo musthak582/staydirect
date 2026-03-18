@@ -60,7 +60,7 @@ export function RoomForm({ initialData, onSuccess }: RoomFormProps) {
     watch,
     formState: { errors, isSubmitting, isValid },
   } = useForm<RoomFormValues>({
-    resolver: zodResolver(roomSchema),
+    resolver: zodResolver(roomSchema) as any,
     defaultValues: initialData
       ? {
           name: initialData.name,
