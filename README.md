@@ -1,168 +1,175 @@
-# 🏨 StayDirect – Zero‑commission booking websites for hotels
+# 🏨 StayDirect – Zero-commission hotel booking platform
 
 <p align="center">
-  <img src="public/og-image.png" alt="StayDirect - Direct bookings for hotels" width="600" />
+  <img src="./public/og-image.png" alt="StayDirect - Direct bookings for hotels" width="700" />
 </p>
 
 <p align="center">
   <a href="#features"><img src="https://img.shields.io/badge/Features-✨-blue?style=flat-square" /></a>
   <a href="#tech-stack"><img src="https://img.shields.io/badge/Stack-Next.js%20·%20Prisma%20·%20Stripe-000?style=flat-square" /></a>
-  <a href="https://staydirect.com"><img src="https://img.shields.io/badge/Live-demo-emerald?style=flat-square" /></a>
+  <a href="#getting-started"><img src="https://img.shields.io/badge/Setup-⚡-brightgreen?style=flat-square" /></a>
   <a href="#license"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" /></a>
 </p>
 
 ---
 
-## 💡 **The problem**
+## 💡 The Problem
 
-Hotels lose **15–30% commission** to major booking platforms (Booking.com, Expedia, etc.). Many small hotels want **direct bookings** but lack the technical knowledge to build a professional booking website.
-
-## ✅ **The solution**
-
-**StayDirect** allows hotels to **create their own booking website instantly**, manage rooms, track reservations, and accept payments — all without paying any commission.
+Hotels lose **15–30% commission** to platforms like Booking.com and Expedia.
+Many small and medium hotels want **direct bookings**, but lack the tools to build and manage a professional booking system.
 
 ---
 
-## ✨ **Features**
+## ✅ The Solution
 
-### For hotel owners
-| Feature | Description |
-|--------|-------------|
-| 🏨 **Hotel profile** | Set up your hotel details, location, description, and contact info |
-| 🛏️ **Room management** | Add/edit rooms with photos, pricing, capacity, and amenities |
-| 📅 **Booking engine** | Real-time availability, prevent double bookings, instant confirmations |
-| 💳 **Payments** | Accept deposits/full payments via Stripe – only pay transaction fees |
-| 📊 **Analytics** | Track revenue, occupancy rates, and booking trends |
-| 📱 **Mobile‑friendly** | Your booking site works perfectly on all devices |
-| 🔗 **Custom domain** | Use your own domain (e.g., `book.yourhotel.com`) |
+**StayDirect** is a modern **multi-tenant SaaS platform** that enables hotels to:
 
-### For guests
-- Browse rooms with photos and descriptions
-- Check real‑time availability
-- Book instantly with secure payment
-- Receive email confirmations
-- Leave reviews after their stay
+* Create their own booking website instantly
+* Accept direct reservations with **zero commission**
+* Manage rooms, pricing, and bookings in one dashboard
 
 ---
 
-## 🚀 **Live demo**
+## ✨ Features
 
-👉 **[staydirect.com/demo](https://staydirect.com/demo)** (hotel owner dashboard)  
-👉 **[grand-hotel.staydirect.com](https://grand-hotel.staydirect.com)** (example public booking site)
+### 🏨 For Hotel Owners
 
----
+| Feature         | Description                                               |
+| --------------- | --------------------------------------------------------- |
+| Hotel Profile   | Add hotel details, location, images, and contact info     |
+| Room Management | Create and manage rooms with pricing, capacity, amenities |
+| Booking Engine  | Real-time availability with no double bookings            |
+| Payments        | Secure payments via Stripe (no commission, only fees)     |
+| Dashboard       | Manage bookings, rooms, and hotel data                    |
+| Custom Domain   | Use your own domain (e.g., `book.yourhotel.com`)          |
+| Mobile Ready    | Fully responsive booking experience                       |
 
-## 🛠️ **Tech stack**
+### 🧳 For Guests
 
-| Area | Technology |
-|------|------------|
-| **Framework** | [Next.js 15](https://nextjs.org/) (App Router) |
-| **Language** | TypeScript |
-| **Styling** | TailwindCSS + [shadcn/ui](https://ui.shadcn.com/) |
-| **Database** | PostgreSQL (via [Neon](https://neon.tech/)) |
-| **ORM** | [Prisma](https://prisma.io/) |
-| **Auth** | [Better‑Auth](https://better-auth.com/) (email + Google) |
-| **Payments** | [Stripe](https://stripe.com/) |
-| **Uploads** | [UploadThing](https://uploadthing.com/) |
-| **Email** | Nodemailer + Gmail SMTP |
-| **Deployment** | [Vercel](https://vercel.com/) |
-
----
-
-## 📦 **Project structure**
-
-```
-app/
-├── (auth)                 # Sign‑in, sign‑up, password reset
-├── (dashboard)            # Hotel owner dashboard
-│   ├── dashboard/
-│   │   ├── hotel/         # Hotel profile
-│   │   ├── rooms/         # Room management
-│   │   ├── bookings/      # Bookings overview
-│   │   └── ...
-├── (site)                 # Public hotel websites
-│   └── [hotelSlug]/       # Dynamic hotel sites
-├── api/                   # API routes (UploadThing, webhooks)
-├── actions/               # Server actions (data mutations)
-├── components/            # Reusable UI components
-├── lib/                   # Utilities, auth, db client
-└── types/                 # Global TypeScript types
-```
+* Browse rooms with images and details
+* Check real-time availability
+* Book instantly with secure checkout
+* Receive email confirmations
+* Smooth mobile-friendly experience
 
 ---
 
-## 🚦 **Getting started**
+## 📸 Screenshots
+
+### Dashboard
+
+![Dashboard](./screenshots/dashboard.png)
+
+### Booking Page
+
+![Booking](./screenshots/booking.png)
+
+---
+
+## 🛠️ Tech Stack
+
+| Area       | Technology                   |
+| ---------- | ---------------------------- |
+| Framework  | Next.js 15 (App Router)      |
+| Language   | TypeScript                   |
+| Styling    | Tailwind CSS + shadcn/ui     |
+| Database   | PostgreSQL (Neon)            |
+| ORM        | Prisma                       |
+| Auth       | Better-Auth (Email + Google) |
+| Payments   | Stripe                       |
+| Uploads    | UploadThing                  |
+| Email      | Nodemailer (Gmail SMTP)      |
+| Deployment | Vercel                       |
+
+---
+
+## 🏗️ Architecture
+
+* Multi-tenant SaaS using dynamic routing (`[hotelSlug]`)
+* Server Actions for secure backend logic
+* Prisma ORM for type-safe database queries
+* Stripe integration with webhook handling
+* UploadThing for scalable file uploads
+* Modular component-based frontend (Next.js)
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 20+
-- PostgreSQL database (I recommend [Neon](https://neon.tech/))
-- Stripe account
-- Google OAuth credentials
-- Gmail account (for email)
 
-### 1. Clone & install
+* Node.js 20+
+* PostgreSQL database (recommended: Neon)
+* Stripe account
+* Google OAuth credentials
+* Gmail account (for emails)
+
+---
+
+### 1. Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/staydirect.git
+git clone https://github.com/musthak582/staydirect.git
 cd staydirect
 npm install
 ```
 
-### 2. Environment variables
+---
 
-Copy `.env.example` to `.env` and fill in your values:
+### 2. Environment Variables
+
+Create `.env` file:
 
 ```env
-# Database
 DATABASE_URL="postgresql://..."
 
-# Auth
 BETTER_AUTH_SECRET="your-secret"
 BETTER_AUTH_URL="http://localhost:3000"
 AUTH_GOOGLE_ID="your-google-client-id"
 AUTH_GOOGLE_SECRET="your-google-client-secret"
 
-# Email (for verification, password reset)
 GMAIL_EMAIL="your@gmail.com"
 GMAIL_APP_PASSWORD="your-app-password"
 
-# UploadThing
 UPLOADTHING_SECRET="..."
 UPLOADTHING_APP_ID="..."
 
-# Stripe
 STRIPE_SECRET_KEY="sk_test_..."
 STRIPE_WEBHOOK_SECRET="whsec_..."
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_..."
 ```
 
-### 3. Set up database
+---
+
+### 3. Database Setup
 
 ```bash
 npx prisma generate
 npx prisma db push
 ```
 
-### 4. Run development server
+---
+
+### 4. Run Development Server
 
 ```bash
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) ✨
+Visit: http://localhost:3000
 
 ---
 
-## 🧪 **Running tests**
+## 🧪 Testing
 
 ```bash
-npm run test        # unit tests
-npm run test:e2e    # end‑to‑end tests (Playwright)
+npm run test
+npm run test:e2e
 ```
 
 ---
 
-## 🏗️ **Building for production**
+## 🏗️ Build for Production
 
 ```bash
 npm run build
@@ -171,65 +178,63 @@ npm start
 
 ---
 
-## 🗺️ **Roadmap**
+## 🧠 What I Learned
 
-### ✅ Completed (MVP)
-- [x] Authentication (email + Google)
-- [x] Hotel profile management
-- [x] Room CRUD with image upload
-- [x] Booking engine with availability
-- [x] Stripe payment integration
-- [x] Public hotel website generator
-- [x] Booking management dashboard
-- [x] Email notifications (confirmation, password reset)
+* Built a full-stack SaaS using Next.js App Router
+* Designed a multi-tenant architecture
+* Implemented secure authentication and authorization
+* Integrated Stripe payments and webhook flows
+* Built scalable file upload system
+* Managed relational data using Prisma ORM
 
-### 🚧 In progress
-- [ ] Analytics dashboard (revenue, occupancy)
-- [ ] Review system
-- [ ] Seasonal pricing
-- [ ] Channel manager (sync with OTAs)
+---
+
+## 🗺️ Roadmap
+
+### ✅ Completed
+
+* Authentication (Email + Google)
+* Hotel & room management
+* Booking engine
+* Stripe payments
+* Public booking websites
+* Email notifications
+
+### 🚧 In Progress
+
+* Analytics dashboard
+* Reviews system
+* Seasonal pricing
 
 ### 🔮 Future
-- [ ] Mobile app (iOS/Android)
-- [ ] WhatsApp/SMS notifications
-- [ ] Multi‑language support
-- [ ] Team management (multiple staff)
+
+* Mobile app (iOS/Android)
+* SMS/WhatsApp notifications
+* Multi-language support
+* Team/staff roles
 
 ---
 
-## 🤝 **Contributing**
+## 🤝 Contributing
 
-Contributions are welcome! Please read our [contributing guidelines](CONTRIBUTING.md) first.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing`)
-5. Open a Pull Request
+⚠️ This is currently a personal SaaS project.
+Feel free to open issues or suggest improvements.
 
 ---
 
-## 📄 **License**
+## 📄 License
 
-MIT © [StayDirect](https://staydirect.com)
+MIT © StayDirect
 
 ---
 
-## 🙏 **Acknowledgements**
+## 🌐 Links
 
-- [shadcn/ui](https://ui.shadcn.com/) for the beautiful components
-- [Better‑Auth](https://better-auth.com/) for the auth system
-- [Vercel](https://vercel.com/) for hosting
-- [Neon](https://neon.tech/) for serverless Postgres
-- All the hoteliers who provided feedback during development
+* GitHub: https://github.com/musthak582/staydirect
+* Email: [hello@staydirect.com](mailto:hello@staydirect.com)
 
 ---
 
 <p align="center">
-  Built with ❤️ for independent hotels everywhere.
-</p>
-<p align="center">
-  <a href="https://staydirect.com">staydirect.com</a> ·
-  <a href="mailto:hello@staydirect.com">hello@staydirect.com</a> ·
-  <a href="https://twitter.com/staydirect">@staydirect</a>
+  Built with ❤️ to empower independent hotels.
 </p>
