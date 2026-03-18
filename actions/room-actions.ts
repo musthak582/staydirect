@@ -1,7 +1,7 @@
 //actions/room-actions.ts
 "use server";
 
-import  prisma  from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { roomSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
@@ -29,7 +29,10 @@ export async function createRoom(formData: FormData): Promise<ActionResult<Room>
     const raw = Object.fromEntries(formData);
     const parsed = roomSchema.safeParse(raw);
     if (!parsed.success) {
-      return { success: false, error: parsed.error.errors[0].message };
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message || "Invalid input",
+      };
     }
 
     const room = await prisma.room.create({
@@ -61,9 +64,11 @@ export async function updateRoom(roomId: string, formData: FormData): Promise<Ac
     const raw = Object.fromEntries(formData);
     const parsed = roomSchema.safeParse(raw);
     if (!parsed.success) {
-      return { success: false, error: parsed.error.errors[0].message };
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message || "Invalid input",
+      };
     }
-
     const room = await prisma.room.update({
       where: { id: roomId },
       data: { ...parsed.data, imageUrl: parsed.data.imageUrl || null },
