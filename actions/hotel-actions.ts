@@ -130,8 +130,9 @@ export async function createOrUpdateHotel(formData: FormData) {
     return { hotel, success: true };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return { error: error.errors[0].message };
+      return { error: error.issues[0]?.message || "Invalid input" };
     }
+
     console.error("Error saving hotel:", error);
     return { error: "Failed to save hotel" };
   }

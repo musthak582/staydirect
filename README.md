@@ -60,9 +60,9 @@ Many small and medium hotels want **direct bookings**, but lack the tools to bui
 
 ![Dashboard](./public/dashboard.png)
 
-### Booking Page
+### Hotel Profile Page
 
-![Booking](./public/booking.png)
+![Booking](./public/hotel_profile.png)
 
 ---
 
