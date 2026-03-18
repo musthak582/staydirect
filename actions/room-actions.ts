@@ -82,7 +82,7 @@ export async function updateRoom(roomId: string, formData: FormData): Promise<Ac
   }
 }
 
-export async function deleteRoom(roomId: string): Promise<ActionResult> {
+export async function deleteRoom(roomId: string): Promise<ActionResult<void>>{
   try {
     const session = await getSession();
     const hotel = await getOwnerHotel(session.user.id);
